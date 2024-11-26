@@ -1,0 +1,3 @@
+alias encrypton="mysql -h 127.0.0.1 -u root -P3311 -proot -D sakila --mysql --table"
+alias encryptoff="mysql -h 127.0.0.1 -u root -P3312 -proot -D sakila --mysql --table"
+alias sysbench="docker exec -it sysbench bash"

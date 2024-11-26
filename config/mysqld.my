@@ -1,0 +1,1 @@
+{ "read_local_manifest": false, "components": "file://component_keyring_file", "keyring_file_data": "/var/lib/mysql-keyring/component_keyring_file" }

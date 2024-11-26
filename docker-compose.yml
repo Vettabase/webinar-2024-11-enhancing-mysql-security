@@ -1,0 +1,102 @@
+services:
+
+  encrypton:
+    hostname: encrypton
+    container_name: encrypton
+    image: mysql:8.0.40-debian
+    platform: linux/amd64
+    user: root
+    environment: &mysql_env
+      - MYSQL_ROOT_HOST=%
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ALLOW_EMPTY_PASSWORD=no
+      - MYSQL_DATABASE=sakila
+    networks:
+      vettabase_net:
+        ipv4_address: 172.20.1.11
+    command: |-
+      --server-id=11
+      --log-replica-updates=on
+      --log-bin
+      --pid-file=/var/lib/mysql/mysqld.pid
+      --require_secure_transport=ON
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+      --default-table-encryption=ON
+      --binlog_encryption=ON
+      --innodb_redo_log_encrypt=ON
+      --innodb_undo_log_encrypt=ON
+    ports:
+      - 3311:3306
+    volumes:
+      - "./volumes/encrypton_data:/var/lib/mysql"
+      - "./volumes/encryptoff_keyring:/var/lib/mysql-keyring"
+      - "./config/mysql-client.cnf:/etc/.my.cnf"
+      - "./config/mysqld.my:/usr/sbin/mysqld.my:ro"
+      - "./scripts/sql:/tmp/sql"
+      - "./config/component_keyring_file.cnf:/usr/lib/mysql/plugin/component_keyring_file.cnf:rw"
+      - "./scripts/bash/init_encrypton.sh:/docker-entrypoint-initdb.d/init_encrypton.sh"
+    healthcheck: &mysql_healthcheck
+      test: ["CMD", "mysqladmin", "ping"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  encryptoff:
+    hostname: encryptoff
+    container_name: encryptoff
+    image: mysql:8.0.40-debian
+    platform: linux/amd64
+    user: root
+    environment: *mysql_env
+    networks:
+      vettabase_net:
+        ipv4_address: 172.20.1.12
+    command: |-
+      --server-id=12
+      --log-replica-updates=on
+      --log-bin
+      --pid-file=/var/lib/mysql/mysqld.pid
+      --require_secure_transport=ON
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+      --relay-log=replica-relay-bin
+    ports:
+      - 3312:3306
+    volumes:
+      - "./volumes/encryptoff_data:/var/lib/mysql"
+      - "./config/mysql-client.cnf:/etc/.my.cnf"
+      - "./scripts/sql:/tmp/sql"
+      - "./scripts/bash/init_encryptoff.sh:/docker-entrypoint-initdb.d/init_encryptoff.sh"
+    healthcheck: *mysql_healthcheck
+
+  sysbench:
+    hostname: sysbench
+    container_name: sysbench
+    image: custom-sysbench:1.1.0
+    networks:
+      vettabase_net:
+        ipv4_address: 172.20.1.13
+    command: ["sleep", "infinity"]
+    depends_on:
+      - encrypton
+      - encryptoff
+    volumes:
+      - "./volumes/encrypton_data:/tmp/encrypton_data"
+      - "./volumes/encryptoff_data:/tmp/encryptoff_data"
+    working_dir: /scripts
+    environment:
+      MYSQL_HOST_ENCRYPTON: 172.20.1.11
+      MYSQL_HOST_ENCRYPTOFF: 172.20.1.12
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_PORT: 3306
+      MYSQL_DB: sakila
+
+networks:
+  vettabase_net:
+    name: vettabase_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24

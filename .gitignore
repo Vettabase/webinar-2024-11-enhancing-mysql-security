@@ -1,0 +1,6 @@
+# Ignore .DS_Store in all directories
+.DS_Store
+**/.DS_Store
+
+# Ignore the "volumes/" directory and its contents
+volumes/
